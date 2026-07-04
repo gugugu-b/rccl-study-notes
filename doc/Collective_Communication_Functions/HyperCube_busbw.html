@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HyperCube AllGather · busBw 推导</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f0f0f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif; }
+  :root {
+    --surface: #ffffff; --surface-muted: #f6f6fb; --surface-soft: #eef0f7;
+    --border: #e2e2ec; --text: #1a1a2e; --text-muted: #6b6b80;
+    --brand: #7c5cff; --brand-strong: #5b3fd6; --brand-soft: #efebff;
+    --font-sans: -apple-system, "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif;
+    --font-mono: "SF Mono", "JetBrains Mono", "Menlo", monospace;
+    --radius: 8px; --radius-card: 12px; --weight-medium: 500; --weight-strong: 700;
+  }
+  .bw-root { font-family: var(--font-sans); color: var(--text); background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-card); padding: 20px; width: 100%; max-width: 880px; }
+  .bw-title { font-size: 16px; font-weight: var(--weight-strong); margin: 0 0 4px; }
+  .bw-sub { font-size: 12px; color: var(--text-muted); margin: 0 0 16px; }
+  .bw-grid { display: flex; gap: 20px; align-items: stretch; }
+  .bw-ring { flex: 0 0 300px; }
+  .bw-derive { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .bw-derive-head { font-size: 13px; font-weight: var(--weight-medium); color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; }
+  .bw-step { display: flex; gap: 10px; align-items: baseline; font-size: 14px; line-height: 1.5; }
+  .bw-step .n { flex: 0 0 22px; font-family: var(--font-mono); font-size: 12px; color: var(--brand-strong); font-weight: var(--weight-strong); }
+  .bw-step .t { font-family: var(--font-mono); font-size: 13px; }
+  .bw-step .d { font-size: 12px; color: var(--text-muted); }
+  .bw-concl { margin-top: 6px; padding: 12px 14px; background: var(--brand-soft); border:1px solid var(--brand); border-radius: var(--radius); font-size: 14px; line-height: 1.5; }
+  .bw-concl .k { font-family: var(--font-mono); font-weight: var(--weight-strong); color: var(--brand-strong); }
+  .bw-concl .h { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .bw-legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-muted); margin-top: 10px; flex-wrap: wrap; }
+  .bw-legend span b { color: var(--text); font-weight: var(--weight-medium); }
+</style>
+</head>
+<body>
+  <div class="bw-root">
+    <div class="bw-title">HyperCube AllGather · busBw 理论上限推导</div>
+    <div class="bw-sub">源码 hypercube.cu: factor = 1，n = 8 GPU，M = 128 MB</div>
+    <div class="bw-grid">
+      <div class="bw-ring">
+        <svg viewBox="0 0 300 340" width="300" height="340" xmlns="http://www.w3.org/2000/svg">
+          <!-- 轮0 维0 前后层连线（虚线·浅） -->
+          <g stroke="#7c5cff" stroke-width="2.5" stroke-opacity="0.4" stroke-dasharray="5 4">
+            <line x1="80"  y1="120" x2="120" y2="80"/>
+            <line x1="180" y1="100" x2="220" y2="60"/>
+            <line x1="200" y1="200" x2="240" y2="160"/>
+            <line x1="85"  y1="220" x2="140" y2="180"/>
+          </g>
+          <!-- 轮1 维1 水平边（实线·中） -->
+          <g stroke="#7c5cff" stroke-width="2.5" stroke-opacity="0.65">
+            <line x1="80"  y1="120" x2="180" y2="100"/>
+            <line x1="200" y1="200" x2="85"  y2="220"/>
+            <line x1="120" y1="80"  x2="220" y2="60"/>
+            <line x1="240" y1="160" x2="140" y2="180"/>
+          </g>
+          <!-- 轮2 维2 垂直边（实线·满） -->
+          <g stroke="#7c5cff" stroke-width="2.5" stroke-opacity="1">
+            <line x1="80"  y1="120" x2="85"  y2="220"/>
+            <line x1="180" y1="100" x2="200" y2="200"/>
+            <line x1="120" y1="80"  x2="140" y2="180"/>
+            <line x1="220" y1="60"  x2="240" y2="160"/>
+          </g>
+          <!-- 节点 -->
+          <g font-size="12" fill="#1a1a2e" text-anchor="middle" dominant-baseline="central">
+            <circle cx="80"  cy="120" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="80"  y="120">G0</text>
+            <circle cx="180" cy="100" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="180" y="100">G1</text>
+            <circle cx="200" cy="200" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="200" y="200">G2</text>
+            <circle cx="85"  cy="220" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="85"  y="220">G3</text>
+            <circle cx="120" cy="80"  r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="120" y="80">G4</text>
+            <circle cx="220" cy="60"  r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="220" y="60">G5</text>
+            <circle cx="240" cy="160" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="240" y="160">G6</text>
+            <circle cx="140" cy="180" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="140" y="180">G7</text>
+          </g>
+          <!-- 轮0 标注（G0-G4 旁） -->
+          <g>
+            <rect x="8" y="74" width="84" height="16" rx="6" fill="#efebff" stroke="#7c5cff" stroke-width="1"/>
+            <text x="50" y="82" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#1a1a2e">轮0 base=16MB</text>
+          </g>
+          <!-- 轮1 标注（G2-G3 旁） -->
+          <g>
+            <rect x="105" y="242" width="100" height="16" rx="6" fill="#efebff" stroke="#7c5cff" stroke-width="1"/>
+            <text x="155" y="250" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#1a1a2e">轮1 2×base=32MB</text>
+          </g>
+          <!-- 轮2 标注（G5-G6 旁） -->
+          <g>
+            <rect x="200" y="102" width="98" height="16" rx="6" fill="#efebff" stroke="#7c5cff" stroke-width="1"/>
+            <text x="249" y="110" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#1a1a2e">轮2 4×base=64MB</text>
+          </g>
+          <!-- 底部标注 -->
+          <g>
+            <rect x="60" y="298" width="180" height="24" rx="6" fill="#efebff" stroke="#7c5cff" stroke-width="1"/>
+            <text x="150" y="310" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#1a1a2e">超立方体 · 3 轮 × 串行</text>
+          </g>
+        </svg>
+      </div>
+      <div class="bw-derive">
+        <div class="bw-derive-head">推导链</div>
+        <div class="bw-step"><span class="n">1</span><span class="t">M = 128 MB, n = 8</span><span class="d">每 rank 贡献 base = M/n = 16MB，d = log₂n = 3 维</span></div>
+        <div class="bw-step"><span class="n">2</span><span class="t">轮 i 交换 2^i × base</span><span class="d">轮0 传 16MB，轮1 传 32MB，轮2 传 64MB</span></div>
+        <div class="bw-step"><span class="n">3</span><span class="t">每 rank 总发 = base×(1+2+4) = (n−1)×base = 112MB</span><span class="d">轮间串行</span></div>
+        <div class="bw-step"><span class="n">4</span><span class="t">T = (n−1)·base / B = (n−1)·M / (n·B)</span><span class="d">三轮串行总时间</span></div>
+        <div class="bw-step"><span class="n">5</span><span class="t">algBw = (n−1)·base / T = B</span><span class="d">baseBw 用 (n−1) 而非 n，统计接收的他人数据</span></div>
+        <div class="bw-step"><span class="n">6</span><span class="t">busBw = algBw × 1 = B ✓</span><span class="d">factor=1，baseBw 已按实际链路负载计算</span></div>
+        <div class="bw-concl">
+          <div class="k">busBw = B</div>
+          <div class="h">HyperCube 与 AllGather 语义相同（都是 AllGather）但拓扑不同。AllGather 的 baseBw 用 n（含自己）配 factor (n−1)/n；HyperCube 的 baseBw 用 (n−1)（不含自己）配 factor 1，殊途同归。</div>
+        </div>
+        <div class="bw-legend">
+          <span>每 rank 贡献 <b>base=16MB</b></span>
+          <span>维数 <b>log₂8=3</b></span>
+          <span>每 rank 总发送 <b>16+32+64=112MB</b></span>
+          <span>factor <b>1</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

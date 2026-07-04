@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scatter · busBw 推导</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f0f0f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif; }
+  :root {
+    --surface: #ffffff; --surface-muted: #f6f6fb; --surface-soft: #eef0f7;
+    --border: #e2e2ec; --text: #1a1a2e; --text-muted: #6b6b80;
+    --brand: #7c5cff; --brand-strong: #5b3fd6; --brand-soft: #efebff;
+    --font-sans: -apple-system, "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif;
+    --font-mono: "SF Mono", "JetBrains Mono", "Menlo", monospace;
+    --radius: 8px; --radius-card: 12px; --weight-medium: 500; --weight-strong: 700;
+  }
+  .bw-root { font-family: var(--font-sans); color: var(--text); background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-card); padding: 20px; width: 100%; max-width: 880px; }
+  .bw-title { font-size: 16px; font-weight: var(--weight-strong); margin: 0 0 4px; }
+  .bw-sub { font-size: 12px; color: var(--text-muted); margin: 0 0 16px; }
+  .bw-grid { display: flex; gap: 20px; align-items: stretch; }
+  .bw-ring { flex: 0 0 300px; }
+  .bw-derive { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .bw-derive-head { font-size: 13px; font-weight: var(--weight-medium); color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; }
+  .bw-step { display: flex; gap: 10px; align-items: baseline; font-size: 14px; line-height: 1.5; }
+  .bw-step .n { flex: 0 0 22px; font-family: var(--font-mono); font-size: 12px; color: var(--brand-strong); font-weight: var(--weight-strong); }
+  .bw-step .t { font-family: var(--font-mono); font-size: 13px; }
+  .bw-step .d { font-size: 12px; color: var(--text-muted); }
+  .bw-concl { margin-top: 6px; padding: 12px 14px; background: var(--brand-soft); border:1px solid var(--brand); border-radius: var(--radius); font-size: 14px; line-height: 1.5; }
+  .bw-concl .k { font-family: var(--font-mono); font-weight: var(--weight-strong); color: var(--brand-strong); }
+  .bw-concl .h { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .bw-legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-muted); margin-top: 10px; flex-wrap: wrap; }
+  .bw-legend span b { color: var(--text); font-weight: var(--weight-medium); }
+</style>
+</head>
+<body>
+  <div class="bw-root">
+    <div class="bw-title">Scatter · busBw 理论上限推导</div>
+    <div class="bw-sub">源码 scatter.cu: factor = (n−1)/n，n = 8 GPU，M = 128 MB</div>
+    <div class="bw-grid">
+      <div class="bw-ring">
+        <svg viewBox="0 0 300 340" width="300" height="340" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M1 1 L7 4 L1 7 Z" fill="#7c5cff"/>
+            </marker>
+          </defs>
+          <!-- 根扇出连线 G0→Gi -->
+          <g stroke="#7c5cff" stroke-width="2" fill="none">
+            <line x1="76" y1="161" x2="219" y2="84"  marker-end="url(#ah)"/>
+            <line x1="77" y1="166" x2="251" y2="122" marker-end="url(#ah)"/>
+            <line x1="78" y1="170" x2="260" y2="170" marker-end="url(#ah)"/>
+            <line x1="77" y1="174" x2="251" y2="218" marker-end="url(#ah)"/>
+            <line x1="76" y1="179" x2="219" y2="256" marker-end="url(#ah)"/>
+            <line x1="73" y1="182" x2="175" y2="280" marker-end="url(#ah)"/>
+            <line x1="69" y1="185" x2="129" y2="283" marker-end="url(#ah)"/>
+          </g>
+          <!-- 每条箭头标注 base=16MB（白色描边保证可读） -->
+          <g font-size="9" fill="#6b6b80" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle" dominant-baseline="central">
+            <text x="183" y="104">16MB</text>
+            <text x="206" y="134">16MB</text>
+            <text x="213" y="170">16MB</text>
+            <text x="206" y="206">16MB</text>
+            <text x="183" y="237">16MB</text>
+            <text x="150" y="255">16MB</text>
+            <text x="115" y="260">16MB</text>
+          </g>
+          <!-- root 标注 128MB = 8×16MB（G0 上方两行） -->
+          <g font-size="10" fill="#5b3fd6" text-anchor="middle" dominant-baseline="central">
+            <text x="60" y="128">128MB</text>
+            <text x="60" y="142">= 8×16MB</text>
+          </g>
+          <!-- 节点 -->
+          <g font-size="12" fill="#1a1a2e" text-anchor="middle" dominant-baseline="central">
+            <circle cx="60"  cy="170" r="18" stroke="#7c5cff" fill="#efebff" stroke-width="2"/><text x="60"  y="170">G0</text>
+            <circle cx="235" cy="75"  r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="235" y="75">G1</text>
+            <circle cx="268" cy="118" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="268" y="118">G2</text>
+            <circle cx="278" cy="170" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="278" y="170">G3</text>
+            <circle cx="268" cy="222" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="268" y="222">G4</text>
+            <circle cx="235" cy="265" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="235" y="265">G5</text>
+            <circle cx="188" cy="292" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="188" y="292">G6</text>
+            <circle cx="138" cy="298" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="138" y="298">G7</text>
+          </g>
+          <!-- 底部标注 -->
+          <g>
+            <rect x="80" y="321" width="140" height="16" rx="6" fill="#efebff" stroke="#7c5cff" stroke-width="1"/>
+            <text x="150" y="329" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#1a1a2e">根扇出 · 7 × 16 MB</text>
+          </g>
+        </svg>
+      </div>
+      <div class="bw-derive">
+        <div class="bw-derive-head">推导链</div>
+        <div style='font-family:"SF Mono","JetBrains Mono",Menlo,monospace;font-size:11px;color:#6b6b80;margin-top:-4px;'>源码 scatter.cu: baseBw = count·nranks·typesize/1e9/sec · factor = (n−1)/n · busBw = baseBw·factor</div>
+        <div class="bw-step"><span class="n">1</span><span class="t">M = 128 MB, n = 8</span><span class="d">root 持有 8 段，每段 base = M/n = 16MB，分发给各 rank</span></div>
+        <div class="bw-step"><span class="n">2</span><span class="t">(n−1)·base = 7×16MB</span><span class="d">root 向 7 个其他 rank 各发 base，共 112MB</span></div>
+        <div class="bw-step"><span class="n">3</span><span class="t">T = (n−1)·M/(n·B)</span><span class="d">root 链路串行发送 (n−1) 份</span></div>
+        <div class="bw-step"><span class="n">4</span><span class="t">algBw = M/T = n·B/(n−1) = 8B/7</span><span class="d">≈ 1.143 B</span></div>
+        <div class="bw-step"><span class="n">5</span><span class="t">busBw = algBw × (n−1)/n = B ✓</span><span class="d">(8B/7)×(7/8) = B</span></div>
+        <div class="bw-concl">
+          <div class="k">busBw = B</div>
+          <div class="h">Scatter 是 Broadcast 的分片版——Broadcast 发完整 M，Scatter 发 M/n。root 链路只传 (n−1)/n·M，factor 抵消这层差异。</div>
+        </div>
+        <div class="bw-legend">
+          <span>每 rank 接收 <b>base=16MB</b></span>
+          <span>root 发送份数 <b>n−1=7</b></span>
+          <span>root 总传输 <b>7×16=112MB</b></span>
+          <span>factor <b>(n−1)/n=0.875</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

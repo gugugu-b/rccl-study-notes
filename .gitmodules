@@ -1,0 +1,3 @@
+[submodule "rccl-tests"]
+	path = rccl-tests
+	url = https://github.com/ROCm/rccl-tests.git

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ring ReduceScatter · busBw 推导</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f0f0f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif; }
+  :root {
+    --surface: #ffffff; --surface-muted: #f6f6fb; --surface-soft: #eef0f7;
+    --border: #e2e2ec; --text: #1a1a2e; --text-muted: #6b6b80;
+    --brand: #7c5cff; --brand-strong: #5b3fd6; --brand-soft: #efebff;
+    --font-sans: -apple-system, "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif;
+    --font-mono: "SF Mono", "JetBrains Mono", "Menlo", monospace;
+    --radius: 8px; --radius-card: 12px; --weight-medium: 500; --weight-strong: 700;
+  }
+  .bw-root { font-family: var(--font-sans); color: var(--text); background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-card); padding: 20px; width: 100%; max-width: 880px; }
+  .bw-title { font-size: 16px; font-weight: var(--weight-strong); margin: 0 0 4px; }
+  .bw-sub { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+  .bw-src { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); background: var(--surface-muted); padding: 7px 10px; border-radius: var(--radius); margin: 0 0 16px; line-height: 1.5; }
+  .bw-grid { display: flex; gap: 20px; align-items: stretch; }
+  .bw-ring { flex: 0 0 300px; }
+  .bw-derive { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .bw-derive-head { font-size: 13px; font-weight: var(--weight-medium); color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; }
+  .bw-step { display: flex; gap: 10px; align-items: baseline; font-size: 14px; line-height: 1.5; }
+  .bw-step .n { flex: 0 0 22px; font-family: var(--font-mono); font-size: 12px; color: var(--brand-strong); font-weight: var(--weight-strong); }
+  .bw-step .t { font-family: var(--font-mono); font-size: 13px; }
+  .bw-step .d { font-size: 12px; color: var(--text-muted); }
+  .bw-concl { margin-top: 6px; padding: 12px 14px; background: var(--brand-soft); border:1px solid var(--brand); border-radius: var(--radius); font-size: 14px; line-height: 1.5; }
+  .bw-concl .k { font-family: var(--font-mono); font-weight: var(--weight-strong); color: var(--brand-strong); }
+  .bw-concl .h { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .bw-legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-muted); margin-top: 12px; flex-wrap: wrap; }
+  .bw-legend span b { color: var(--text); font-weight: var(--weight-medium); }
+</style>
+</head>
+<body>
+  <div class="bw-root">
+    <div class="bw-title">Ring ReduceScatter · busBw 理论上限推导</div>
+    <div class="bw-sub">源码 reduce_scatter.cu: factor = (n−1)/n，n = 8 GPU，M = 128 MB</div>
+    <div class="bw-src">baseBw = count*typesize*n / 1e9 / sec;&nbsp;&nbsp;factor = (n−1)/n;&nbsp;&nbsp;busBw = baseBw * factor</div>
+    <div class="bw-grid">
+      <div class="bw-ring">
+        <svg viewBox="0 0 300 340" width="300" height="340" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+              <path d="M1 1 L7 4 L1 7 Z" fill="#7c5cff"/>
+            </marker>
+          </defs>
+          <!-- 环形逆时针 G0->G7->G6->G5->G4->G3->G2->G1->G0 -->
+          <line x1="238.1" y1="153.4" x2="224.1" y2="119.4" stroke="#7c5cff" stroke-width="2.5" marker-end="url(#ah)"/>
+          <line x1="200.6" y1="95.9"  x2="166.6" y2="81.9"  stroke="#7c5cff" stroke-width="2.5" marker-end="url(#ah)"/>
+          <line x1="133.4" y1="81.9"  x2="99.4"  y2="95.9"  stroke="#7c5cff" stroke-width="2.5" marker-end="url(#ah)"/>
+          <line x1="75.9"  y1="119.4" x2="61.9"  y2="153.4" stroke="#7c5cff" stroke-width="2.5" marker-end="url(#ah)"/>
+          <line x1="61.9"  y1="186.6" x2="75.9"  y2="220.6" stroke="#7c5cff" stroke-width="2.5" marker-end="url(#ah)"/>
+          <line x1="99.4"  y1="244.1" x2="133.4" y2="258.1" stroke="#7c5cff" stroke-width="2.5" marker-end="url(#ah)"/>
+          <line x1="166.6" y1="258.1" x2="200.6" y2="244.1" stroke="#7c5cff" stroke-width="2.5" marker-end="url(#ah)"/>
+          <line x1="224.1" y1="220.6" x2="238.1" y2="186.6" stroke="#7c5cff" stroke-width="2.5" marker-end="url(#ah)"/>
+          <!-- 节点（G0 高亮：接收结果段） -->
+          <g font-family="SF Mono, monospace" font-size="12" fill="#1a1a2e" text-anchor="middle" dominant-baseline="central">
+            <circle cx="245" cy="170" r="18" stroke="#7c5cff" fill="#efebff" stroke-width="2"/><text x="245" y="170">G0</text>
+            <circle cx="217" cy="237" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="217" y="237">G1</text>
+            <circle cx="150" cy="265" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="150" y="265">G2</text>
+            <circle cx="83"  cy="237" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="83"  y="237">G3</text>
+            <circle cx="55"  cy="170" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="55"  y="170">G4</text>
+            <circle cx="83"  cy="103" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="83"  y="103">G5</text>
+            <circle cx="150" cy="75"  r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="150" y="75">G6</text>
+            <circle cx="217" cy="103" r="18" stroke="#7c5cff" fill="#ffffff" stroke-width="2"/><text x="217" y="103">G7</text>
+          </g>
+          <!-- 底部阶段标注 -->
+          <rect x="52" y="298" width="196" height="30" rx="6" fill="#efebff" stroke="#7c5cff" stroke-width="1"/>
+          <text x="150" y="313" text-anchor="middle" dominant-baseline="central" font-family="SF Mono, monospace" font-size="10" fill="#1a1a2e">单阶段 ReduceScatter · 7 步 × 16 MB</text>
+        </svg>
+      </div>
+      <div class="bw-derive">
+        <div class="bw-derive-head">busBw 推导链</div>
+        <div class="bw-step"><span class="n">1</span><span class="t">M = 128 MB, n = 8</span><span class="d">每 rank 输入 128MB，输出 base = 16MB 本 rank 负责段</span></div>
+        <div class="bw-step"><span class="n">2</span><span class="t">每步传 base = 16 MB，走 n−1 = 7 步</span><span class="d">边传边规约（partial sum 累加）</span></div>
+        <div class="bw-step"><span class="n">3</span><span class="t">T = (n−1)·base / B = (n−1)·M / (n·B)</span><span class="d">总传输量除以单向链路带宽</span></div>
+        <div class="bw-step"><span class="n">4</span><span class="t">algBw = M/T = n·B/(n−1) = 8B/7 ≈ 1.143 B</span><span class="d">有效数据量 / 耗时</span></div>
+        <div class="bw-step"><span class="n">5</span><span class="t">busBw = algBw × (n−1)/n = (8B/7)×(7/8) = B ✓</span><span class="d">乘以源码 factor = (n−1)/n</span></div>
+        <div class="bw-concl">
+          <div>busBw = <span class="k">B</span>。</div>
+          <div class="h">与 AllGather 公式完全对称，是 AllReduce 第一阶段的半体（reduce 阶段）</div>
+        </div>
+        <div class="bw-legend">
+          <span>每步数据量 <b>base=16MB</b></span>
+          <span>步数 <b>n−1=7</b></span>
+          <span>每 rank 总传输 <b>7×16=112MB</b></span>
+          <span>factor <b>(n−1)/n=0.875</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

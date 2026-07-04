@@ -1,0 +1,32 @@
+# 通用
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 临时上传/草稿目录
+.uploads/
+*.swp
+*.swo
+*~
+*.tmp
+
+# 各类构建产物（如果以后在 doc 里贴代码示例会用到）
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.exe
+
+# 编辑器
+.vscode/
+.idea/
+*.iml
+
+# submodule 内部产物（submodule 自带 .git，不在外层管理）
+rccl-tests/build/
+rccl-tests/.DS_Store

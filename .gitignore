@@ -30,3 +30,6 @@ Thumbs.db
 # submodule 内部产物（submodule 自带 .git，不在外层管理）
 rccl-tests/build/
 rccl-tests/.DS_Store
+
+# 本地参考用的上游 RCCL 源码克隆（独立 .git，不纳入本仓库）
+rccl/

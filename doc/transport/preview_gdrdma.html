@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDRDMA vs Fallback 预览</title>
+<style>
+body { font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", sans-serif; max-width: 960px; margin: 0 auto; padding: 20px; color: #1a1a2e; line-height: 1.6; }
+h1 { font-size: 24px; margin: 0 0 8px; }
+h2 { font-size: 20px; margin: 24px 0 8px; border-bottom: 2px solid #e2e2ec; padding-bottom: 4px; }
+h3 { font-size: 16px; margin: 16px 0 8px; }
+blockquote { border-left: 4px solid #7c5cff; margin: 12px 0; padding: 8px 16px; color: #6b6b80; background: #f6f6fb; border-radius: 0 8px 8px 0; }
+pre { background: #f6f6fb; padding: 12px 16px; border-radius: 8px; overflow-x: auto; font-family: "SF Mono", "JetBrains Mono", "Menlo", monospace; font-size: 13px; line-height: 1.5; }
+code { background: #f6f6fb; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: "SF Mono", "JetBrains Mono", "Menlo", monospace; }
+pre code { background: none; padding: 0; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid #e2e2ec; padding: 8px 12px; text-align: left; }
+th { background: #efebff; color: #5b3fd6; font-weight: 600; }
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: none; border-top: 1px solid #e2e2ec; margin: 24px 0; }
+em { color: #6b6b80; }
+
+/* 嵌入图解卡片样式 */
+.bw-root { font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", sans-serif; color: #1a1a2e; background: #ffffff; border:1px solid #e2e2ec; border-radius: 12px; padding: 20px; width: 100%; max-width: 880px; margin: 16px auto; }
+.bw-title { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+.bw-sub { font-size: 12px; color: #6b6b80; margin: 0 0 12px; }
+.bw-grid { display: flex; gap: 20px; align-items: stretch; }
+.bw-ring { flex: 0 0 300px; }
+.bw-derive { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.bw-derive-head { font-size: 13px; font-weight: 500; color: #6b6b80; letter-spacing: .04em; text-transform: uppercase; }
+.bw-step { display: flex; gap: 10px; align-items: baseline; font-size: 14px; line-height: 1.5; }
+.bw-step .n { flex: 0 0 22px; font-family: "SF Mono", monospace; font-size: 12px; color: #5b3fd6; font-weight: 700; }
+.bw-step .t { font-family: "SF Mono", monospace; font-size: 13px; }
+.bw-step .d { font-size: 12px; color: #6b6b80; }
+.bw-concl { margin-top: 6px; padding: 12px 14px; background: #efebff; border:1px solid #7c5cff; border-radius: 8px; font-size: 14px; line-height: 1.5; }
+.bw-concl .k { font-family: "SF Mono", monospace; font-weight: 700; color: #5b3fd6; }
+.bw-concl .h { font-size: 12px; color: #6b6b80; margin-top: 4px; }
+.bw-legend { display: flex; gap: 16px; font-size: 12px; color: #6b6b80; margin-top: 12px; flex-wrap: wrap; }
+.bw-legend span b { color: #1a1a2e; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<h1>NET/IB/0/GDRDMA vs NET/IB/0 传输路径对比</h1>
+
+<blockquote>
+源码位置：NCCL/RCCL <code>netRecvSetup</code> / <code>netSendSetup</code>，<code>ncclTopoCheckGdr</code><br>
+场景：跨机 IB 通信，日志中 <code>NET/IB/0/GDRDMA</code> 降级为 <code>NET/IB/0</code>
+</blockquote>
+
+<div align="center">
+  <div class="bw-root">
+    <div class="bw-title">NET/IB/0/GDRDMA vs NET/IB/0 数据通路对比</div>
+    <div class="bw-sub">NCCL/RCCL IB 传输层 · useGdr 标志决定 buffer 位置与拷贝次数</div>
+    <div class="bw-grid">
+      <div class="bw-ring">
+        <svg viewBox="0 0 300 340" width="300" height="340" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ah1" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+              <path d="M1 1 L7 4 L1 7 Z" fill="#7c5cff"/>
+            </marker>
+            <marker id="ah2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+              <path d="M1 1 L7 4 L1 7 Z" fill="#e85d75"/>
+            </marker>
+          </defs>
+          <line x1="150" y1="20" x2="150" y2="290" stroke="#e2e2ec" stroke-width="1" stroke-dasharray="3 3"/>
+          <text x="75" y="22" text-anchor="middle" fill="#5b3fd6" font-weight="700" font-size="11" font-family="-apple-system, sans-serif">GDRDMA</text>
+          <rect x="35" y="35" width="80" height="32" rx="6" fill="#ffffff" stroke="#7c5cff" stroke-width="2"/>
+          <text x="75" y="51" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#1a1a2e" font-family="-apple-system, sans-serif">GPU 显存</text>
+          <line x1="75" y1="67" x2="75" y2="88" stroke="#7c5cff" stroke-width="2" marker-end="url(#ah1)"/>
+          <rect x="35" y="90" width="80" height="32" rx="6" fill="#ffffff" stroke="#7c5cff" stroke-width="2"/>
+          <text x="75" y="106" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#1a1a2e" font-family="-apple-system, sans-serif">IB 网卡</text>
+          <line x1="75" y1="122" x2="75" y2="143" stroke="#7c5cff" stroke-width="2" marker-end="url(#ah1)"/>
+          <rect x="35" y="145" width="80" height="32" rx="6" fill="#ffffff" stroke="#7c5cff" stroke-width="2"/>
+          <text x="75" y="161" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#1a1a2e" font-family="-apple-system, sans-serif">网络</text>
+          <text x="75" y="195" text-anchor="middle" font-size="11" fill="#5b3fd6" font-weight="600" font-family="-apple-system, sans-serif">0 次拷贝</text>
+          <text x="75" y="210" text-anchor="middle" font-size="10" fill="#6b6b80" font-family="-apple-system, sans-serif">IB 直读显存</text>
+          <text x="225" y="22" text-anchor="middle" fill="#e85d75" font-weight="700" font-size="11" font-family="-apple-system, sans-serif">降级</text>
+          <rect x="185" y="35" width="80" height="32" rx="6" fill="#ffffff" stroke="#e85d75" stroke-width="2"/>
+          <text x="225" y="51" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#1a1a2e" font-family="-apple-system, sans-serif">GPU 显存</text>
+          <line x1="225" y1="67" x2="225" y2="88" stroke="#e85d75" stroke-width="2" marker-end="url(#ah2)"/>
+          <rect x="195" y="69" width="60" height="16" rx="4" fill="#fde8ec" stroke="#e85d75"/>
+          <text x="225" y="77" text-anchor="middle" dominant-baseline="central" font-size="9" fill="#e85d75" font-weight="600" font-family="-apple-system, sans-serif">D→H 拷贝</text>
+          <rect x="185" y="90" width="80" height="32" rx="6" fill="#fde8ec" stroke="#e85d75" stroke-width="2"/>
+          <text x="225" y="106" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#1a1a2e" font-family="-apple-system, sans-serif">Host 内存</text>
+          <line x1="225" y1="122" x2="225" y2="143" stroke="#7c5cff" stroke-width="2" marker-end="url(#ah1)"/>
+          <rect x="185" y="145" width="80" height="32" rx="6" fill="#ffffff" stroke="#7c5cff" stroke-width="2"/>
+          <text x="225" y="161" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#1a1a2e" font-family="-apple-system, sans-serif">IB 网卡</text>
+          <line x1="225" y1="177" x2="225" y2="198" stroke="#7c5cff" stroke-width="2" marker-end="url(#ah1)"/>
+          <rect x="185" y="200" width="80" height="32" rx="6" fill="#ffffff" stroke="#7c5cff" stroke-width="2"/>
+          <text x="225" y="216" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#1a1a2e" font-family="-apple-system, sans-serif">网络</text>
+          <text x="225" y="250" text-anchor="middle" font-size="11" fill="#e85d75" font-weight="600" font-family="-apple-system, sans-serif">2 次拷贝</text>
+          <text x="225" y="265" text-anchor="middle" font-size="10" fill="#6b6b80" font-family="-apple-system, sans-serif">D→H→NIC→H→D</text>
+          <rect x="20" y="298" width="110" height="30" rx="6" fill="#efebff" stroke="#7c5cff"/>
+          <text x="75" y="313" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#5b3fd6" font-weight="600" font-family="-apple-system, sans-serif">满链路带宽</text>
+          <rect x="170" y="298" width="110" height="30" rx="6" fill="#fde8ec" stroke="#e85d75"/>
+          <text x="225" y="313" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#e85d75" font-weight="600" font-family="-apple-system, sans-serif">吞吐降 20-50%</text>
+        </svg>
+      </div>
+      <div class="bw-derive">
+        <div class="bw-derive-head">通路对比推导链</div>
+        <div class="bw-step"><span class="n">1</span><span class="t">useGdr=1: LOC_DEVMEM (显存)</span><span class="d">buffer 在 GPU</span></div>
+        <div class="bw-step"><span class="n">2</span><span class="t">useGdr=0: LOC_HOSTMEM (host)</span><span class="d">buffer 在锁页内存</span></div>
+        <div class="bw-step"><span class="n">3</span><span class="t">GDRDMA: GPU→NIC 直达</span><span class="d">0 次拷贝，0 CPU 介入</span></div>
+        <div class="bw-step"><span class="n">4</span><span class="t">降级: GPU→Host→NIC</span><span class="d">2 次 D↔H 拷贝，CPU 介入</span></div>
+        <div class="bw-step"><span class="n">5</span><span class="t">GDRDMA: regMr(CUDA) | 降级: regMr(HOST)</span><span class="d">RDMA 注册方式不同</span></div>
+        <div class="bw-concl">
+          <div>降级主因：<span class="k">nv_peermem 未加载</span> 或驱动失配</div>
+          <div class="h">吞吐降 20-50%，延迟翻倍；排查优先级：nv_peermem > 驱动版本 > 环境变量 > IOMMU > PCIe 拓扑</div>
+        </div>
+        <div class="bw-legend">
+          <span>GDRDMA <b>0 次拷贝</b></span>
+          <span>降级 <b>2 次 D↔H</b></span>
+          <span>差距 <b>吞吐降 20-50%</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>一、源码公式</h2>
+
+<pre><code>// netRecvSetup / netSendSetup 关键逻辑
+protoLoc[p] = resources->useGdr ? LOC_DEVMEM : LOC_HOSTMEM;
+// useGdr=1: buffer 分配在显存 (cudaMalloc)，IB 直接 DMA 显存
+// useGdr=0: buffer 分配在 host 锁页内存 (cudaHostAlloc)，需先 D→H 拷贝
+
+INFO(NCCL_INIT|NCCL_NET, "Channel %02d : %d[%lx] -> %d[%lx] [receive] via NET/%s/%d%s",
+     channelId, peerInfo->rank, peerInfo->busId, myInfo->rank, myInfo->busId,
+     ncclNetName(), resources->netDev,
+     resources->useGdr ? "/GDRDMA" : "");  // 日志后缀由此决定</code></pre>
+
+<p><code>/GDRDMA</code> 后缀由 <code>useGdr</code> 标志决定。<code>useGdr=1</code> 时 buffer 在显存，IB 网卡通过 <code>nv_peermem</code> 直接 DMA 显存；<code>useGdr=0</code> 时 buffer 回退到 host 锁页内存，数据需先从显存拷贝到 host 再经网卡发出。</p>
+
+<h2>二、参数含义</h2>
+
+<table>
+<thead><tr><th>量</th><th>GDRDMA 路径</th><th>降级路径</th></tr></thead>
+<tbody>
+<tr><td>useGdr</td><td>1</td><td>0</td></tr>
+<tr><td>buffer 位置</td><td><code>LOC_DEVMEM</code>（显存）</td><td><code>LOC_HOSTMEM</code>（host 锁页内存）</td></tr>
+<tr><td>buffer 分配</td><td><code>ncclCudaCalloc</code></td><td><code>ncclCudaHostCalloc</code></td></tr>
+<tr><td>RDMA 注册</td><td><code>regMr(gpuPtr, NCCL_PTR_CUDA)</code></td><td><code>regMr(hostPtr, NCCL_PTR_HOST)</code></td></tr>
+<tr><td>conn.direct</td><td><code>NCCL_DIRECT_NIC</code></td><td>0</td></tr>
+</tbody>
+</table>
+
+<h2>三、对比表</h2>
+
+<table>
+<thead><tr><th>维度</th><th>NET/IB/0/GDRDMA</th><th>NET/IB/0（降级）</th></tr></thead>
+<tbody>
+<tr><td>buffer 位置</td><td>GPU 显存（<code>LOC_DEVMEM</code>）</td><td>Host 锁页内存（<code>LOC_HOSTMEM</code>）</td></tr>
+<tr><td>数据路径</td><td>GPU 显存 → IB NIC → 网络</td><td>GPU 显存 → cudaMemcpy → Host → IB NIC → 网络</td></tr>
+<tr><td>额外拷贝</td><td>0 次</td><td>2 次（发 D→H，收 H→D）</td></tr>
+<tr><td>CPU 介入</td><td>无</td><td>有（cudaMemcpy 占用 CPU+PCIe）</td></tr>
+<tr><td>RDMA 注册</td><td><code>regMr(gpuPtr, NCCL_PTR_CUDA)</code></td><td><code>regMr(hostPtr, NCCL_PTR_HOST)</code></td></tr>
+<tr><td>依赖</td><td><code>nv_peermem</code> 模块 + IB peer memory 接口</td><td>仅标准 IB verbs</td></tr>
+<tr><td>吞吐影响</td><td>满链路带宽</td><td>降 20-50%（受 PCIe+拷贝开销拖累）</td></tr>
+<tr><td>延迟影响</td><td>最低</td><td>约翻倍（多一次 D↔H 往返）</td></tr>
+</tbody>
+</table>
+
+<h2>四、GDRDMA 判定逻辑</h2>
+
+<p><code>useGdr</code> 由 <code>ncclTopoCheckGdr</code> 决定，需同时满足以下条件：</p>
+
+<ol>
+<li><strong><code>nv_peermem</code> 模块已加载</strong> — 检查 <code>/sys/kernel/mm/memory_peers/nv_mem/version</code> 存在</li>
+<li><strong>IB 网卡支持 peer memory</strong> — <code>ncclIbGdrSupport()</code> 返回成功</li>
+<li><strong>GPU 显存能被 IB 注册</strong> — 实际尝试 <code>ncclNetRegMr(gpuPtr, NCCL_PTR_CUDA)</code>，成功才设 <code>gdrSupport=1</code></li>
+<li><strong>GPU 与 NIC 的 PCIe 拓扑可达</strong> — <code>ncclTopoCheckGdr</code> 检查两者在同一 PCIe 子树</li>
+<li><strong>环境变量未禁用</strong> — <code>NCCL_IB_GDR_SUPPORT</code> 未设为 0</li>
+</ol>
+
+<p>任一条件不满足，<code>useGdr=0</code>，日志就只打印 <code>NET/IB/0</code> 而无 <code>/GDRDMA</code> 后缀。</p>
+
+<pre><code>// ncclIbGdrSupport 检查 nv_peermem 模块
+ncclResult_t ncclIbGdrSupport(int ibDev) {
+  static int moduleLoaded = -1;
+  if (moduleLoaded == -1) {
+    moduleLoaded = (access("/sys/kernel/mm/memory_peers/nv_mem/version", F_OK) == -1) ? 0 : 1;
+  }
+  if (moduleLoaded == 0) return ncclSystemError;
+  return ncclSuccess;
+}
+
+// ncclIbGetProperties 设置 ptrSupport
+ncclResult_t ncclIbGetProperties(int dev, ncclNetProperties_t* props) {
+  props->ptrSupport = NCCL_PTR_HOST;
+  if (ncclIbGdrSupport(dev) != ncclSuccess) {
+    INFO(NCCL_NET,"NET/IB : GPU Direct RDMA Disabled for HCA %d '%s' (no module)", ...);
+  } else {
+    props->ptrSupport |= NCCL_PTR_CUDA;
+  }
+  ...
+}</code></pre>
+
+<h2>五、降级排查清单</h2>
+
+<p>从 <code>GDRDMA</code> 降级到无 <code>GDRDMA</code>，按概率从高到低排查：</p>
+
+<h3>1. <code>nv_peermem</code> 模块未加载（最常见）</h3>
+
+<pre><code>lsmod | grep nv_peer_mem     # 检查是否加载
+ls /sys/kernel/mm/memory_peers/nv_mem/version  # 检查 sysfs
+# 若缺失：modprobe nv_peer_mem 或重新安装 nvidia-peer-memory</code></pre>
+
+<h3>2. NVIDIA 驱动更新后 <code>nv_peermem</code> 失效</h3>
+
+<p>驱动升级常导致 peermem 模块需要重新编译。检查版本匹配：</p>
+
+<pre><code>cat /proc/driver/nvidia/version  # NVIDIA 驱动版本
+dpkg -l | grep nvidia-peer-memory  # peermem 包版本
+# 不匹配时需重新编译安装 nvidia-peer-memory-dkms</code></pre>
+
+<h3>3. <code>NCCL_IB_GDR_SUPPORT</code> 被显式设置</h3>
+
+<pre><code>echo $NCCL_IB_GDR_SUPPORT   # 应为空或1
+# 若为0：unset NCCL_IB_GDR_SUPPORT</code></pre>
+
+<h3>4. IB 驱动更新后 peer memory 接口变化</h3>
+
+<p>多见于 OFED 升级后未重启：</p>
+
+<pre><code>ofed_info -s  # 检查 OFED 版本
+# 升级 OFED 后需重启或重新加载 mlx5_core</code></pre>
+
+<h3>5. IOMMU 被启用</h3>
+
+<p>IOMMU 会阻止 IB 网卡直接 DMA GPU 显存：</p>
+
+<pre><code>dmesg | grep -i iommu
+# BIOS 中关闭 IOMMU 或加内核参数 iommu=off</code></pre>
+
+<h3>6. GPU 与 NIC 不在同一 PCIe Root Complex</h3>
+
+<p>拓扑变更（如换了插槽或重新映射）：</p>
+
+<pre><code>nvidia-smi topo -m  # 查看 GPU 与 NIC 拓扑
+# 确认 GPU 和 IB 网卡在同一 PCIe 子树</code></pre>
+
+<p>建议先查第 1、2 项，覆盖 80% 的降级场景。确认 <code>nv_peermem</code> 加载且 <code>nvidia-peer-memory</code> 包版本匹配当前 NVIDIA 驱动版本后，重启 RCCL 任务看日志是否恢复 <code>/GDRDMA</code> 后缀。</p>
+
+<h2>六、性能影响量化</h2>
+
+<p>以 200G InfiniBand 为例（单向理论 25 GB/s）：</p>
+
+<table>
+<thead><tr><th>消息大小</th><th>GDRDMA busBw</th><th>降级 busBw</th><th>差距</th></tr></thead>
+<tbody>
+<tr><td>1 MB</td><td>~20 GB/s</td><td>~12 GB/s</td><td>40%</td></tr>
+<tr><td>8 MB</td><td>~24 GB/s</td><td>~15 GB/s</td><td>37%</td></tr>
+<tr><td>64 MB</td><td>~25 GB/s</td><td>~18 GB/s</td><td>28%</td></tr>
+<tr><td>128 MB</td><td>~25 GB/s</td><td>~19 GB/s</td><td>24%</td></tr>
+</tbody>
+</table>
+
+<p>降级路径的瓶颈在于 PCIe 带宽（典型 16 GB/s × 2 = 32 GB/s 双向）与 <code>cudaMemcpy</code> 的额外开销，大消息时差距缩小但仍显著。</p>
+
+<hr>
+
+<p><em>生成时间：2026-07-06 · 基于 NCCL/RCCL 源码分析</em></p>
+
+</body>
+</html>

@@ -14,28 +14,29 @@
 ## 任务清单
 
 ### 2.1 梳理集合操作语义（2小时）
-对照 `src/` 下每个 `.cu` 文件，画出每种操作的数据流向图：
+对照 `rccl-tests/src/` 下每个 `.cu` 文件，画出每种操作的数据流向图：
 
-| 操作 | 文件 | 语义 | 是否有 root |
+| 操作 | 文件（位于 `rccl-tests/src/`） | 语义 | 是否有 root |
 |---|---|---|:---:|
 | AllReduce | `all_reduce.cu` | 所有 rank 得到相同的归约结果 | 否 |
 | AllGather | `all_gather.cu` | 每个 rank 收集所有 rank 的数据 | 否 |
 | ReduceScatter | `reduce_scatter.cu` | 归约后分散到各 rank | 否 |
 | Broadcast | `broadcast.cu` | root 数据广播到所有 rank | 是 |
 | Reduce | `reduce.cu` | 归约到 root | 是 |
-| AlltoAll | `alltoall.cu` | 全交换 | 否 |
+| AlltoAll | `alltoall.cu` | 全交换（分块各取所需） | 否 |
 | Gather/Scatter | `gather.cu`/`scatter.cu` | 收集/分散 | 是 |
-| SendRecv | `sendrecv.cu` | 点对点 | - |
+| SendRecv | `sendrecv.cu` | 点对点双向传输 | - |
+| AlltoAllv / HyperCube | `alltoallv.cu` / `hypercube.cu` | 变长全交换 / 超立方体通信（扩展算子） | 否 |
 
 - 每个操作画出 N=4 rank 的数据流示意图（手画即可）
 
 ### 2.2 精读测试框架源码（2小时）
-- 精读 `src/common.h`：重点理解 `testColl`、`testEngine`、`threadArgs` 三个结构体
-- 精读 `src/common.cu`：理解 `TimeTest`、`Barrier`、`AllocateBuffs`、`InitData` 的作用
+- 精读 `rccl-tests/src/common.h`：重点理解 `testColl`、`testEngine`、`threadArgs` 三个结构体
+- 精读 `rccl-tests/src/common.cu`：理解 `TimeTest`、`Barrier`、`AllocateBuffs`、`InitData` 的作用
 - 理解多进程×多线程×多GPU的层级关系：`totalRanks = nProcs × nThreads × nGpus`
 
 ### 2.3 深入读一个完整测试（1小时）
-以 `src/all_reduce.cu` 为例，逐行理解：
+以 `rccl-tests/src/all_reduce.cu` 为例，逐行理解：
 - `AllReduceGetCollByteCount`：如何计算发送/接收字节数
 - `AllReduceInitData`：如何初始化输入和期望输出
 - `AllReduceGetBw`：带宽如何计算（注意 `2*(n-1)/n` 因子）
@@ -43,6 +44,7 @@
 - `AllReduceRunTest`：如何遍历数据类型和操作类型
 
 ### 2.4 实验不同参数（1小时）
+在 `rccl-tests` 构建目录下运行：
 ```shell
 # 不同数据类型
 ./build/all_reduce_perf -d half -g 4
@@ -63,20 +65,21 @@
 ---
 
 ## 今日产出
-- [ ] 8 种集合操作的数据流向图（手画或工具绘制）
-- [ ] `common.h` 三个核心结构体的字段注释文档
-- [ ] `all_reduce.cu` 逐行注释版
+- [ ] 8 种核心集合操作的数据流向图（手画或工具绘制）
+- [ ] `rccl-tests/src/common.h` 三个核心结构体的字段注释文档
+- [ ] `rccl-tests/src/all_reduce.cu` 逐行注释版
 - [ ] 参数实验结果对比表
 
 ---
 
 ## 思考题
 1. `testColl` 的回调函数设计为什么能做到"一套框架测所有操作"？
-2. `InitData` 如何保证归约结果可精确预测？提示：看 `verifiable/verifiable.h`
+2. `InitData` 如何保证归约结果可精确预测？提示：看 `rccl-tests/verifiable/verifiable.h`
 3. 为什么 AllReduce 的 busbw 因子是 `2*(n-1)/n`，而 AllGather 是 `(n-1)/n`？
 
 ---
 
 ## 参考资料
-- 当前项目 `src/common.h`、`src/all_reduce.cu`
-- `verifiable/verifiable.h`（可验证归约的设计思路）
+- [common.h](../../../rccl-tests/src/common.h)、[all_reduce.cu](../../../rccl-tests/src/all_reduce.cu)
+- [verifiable.h](../../../rccl-tests/verifiable/verifiable.h)（可验证归约的设计思路）
+- [带宽指标说明](PERFORMANCE.md)

@@ -9,6 +9,7 @@ Thumbs.db
 
 # 临时上传/草稿目录
 .uploads/
+blobs/
 *.swp
 *.swo
 *~

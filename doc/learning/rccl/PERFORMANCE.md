@@ -1,6 +1,6 @@
 # RCCL 性能指标详解 · busBw 修正因子推导
 
-> 本文档是集合通信带宽指标的入口索引，详细推导见 [各算子带宽推导](../bw1100/collectives/README.md) 目录。
+> 本文档是集合通信带宽指标的入口索引，详细推导见 [各算子带宽推导](../../bw1100/collectives/README.md) 目录。
 
 ## 一、核心概念
 
@@ -13,21 +13,23 @@ rccl-tests 对每个集合操作报告两个带宽指标：
 
 ## 二、全算子公式速查
 
-统一场景：n = 8 GPU，M = 128 MB（rccl-tests `-b 134217728`），B = 单向链路带宽。
+源码实现见 `rccl-tests/src/*.cu` 中的各 `*GetBw` 函数。
+
+统一场景：n = 8 GPU/DCU，M = 128 MB（rccl-tests `-b 134217728`），B = 单向链路带宽。
 
 | 算子 | baseBw（数据量/T） | factor | busBw 上限 | 详细文档 |
 |------|-------------------|--------|-----------|---------|
-| AllReduce | count×ts | 2(n−1)/n | B | [AllReduce.md](../bw1100/collectives/AllReduce.md) |
-| AllGather | count×ts×n | (n−1)/n | B | [AllGather.md](../bw1100/collectives/AllGather.md) |
-| ReduceScatter | count×ts×n | (n−1)/n | B | [ReduceScatter.md](../bw1100/collectives/ReduceScatter.md) |
-| Broadcast | count×ts | 1 | B* | [Broadcast.md](../bw1100/collectives/Broadcast.md) |
-| Reduce | count×ts | 1 | B* | [Reduce.md](../bw1100/collectives/Reduce.md) |
-| AlltoAll | count×ts×n | (n−1)/n | B | [AlltoAll.md](../bw1100/collectives/AlltoAll.md) |
-| AlltoAllv | count×ts×n | (n−1)/n | B | [AlltoAllv.md](../bw1100/collectives/AlltoAllv.md) |
-| Scatter | count×ts×n | (n−1)/n | B | [Scatter.md](../bw1100/collectives/Scatter.md) |
-| Gather | count×ts×n | (n−1)/n | B | [Gather.md](../bw1100/collectives/Gather.md) |
-| SendRecv | count×ts | 1 | B | [SendRecv.md](../bw1100/collectives/SendRecv.md) |
-| HyperCube | count×ts×(n−1) | 1 | B | [HyperCube.md](../bw1100/collectives/HyperCube.md) |
+| AllReduce | count×ts | 2(n−1)/n | B | [AllReduce.md](../../bw1100/collectives/AllReduce.md) |
+| AllGather | count×ts×n | (n−1)/n | B | [AllGather.md](../../bw1100/collectives/AllGather.md) |
+| ReduceScatter | count×ts×n | (n−1)/n | B | [ReduceScatter.md](../../bw1100/collectives/ReduceScatter.md) |
+| Broadcast | count×ts | 1 | B* | [Broadcast.md](../../bw1100/collectives/Broadcast.md) |
+| Reduce | count×ts | 1 | B* | [Reduce.md](../../bw1100/collectives/Reduce.md) |
+| AlltoAll | count×ts×n | (n−1)/n | B | [AlltoAll.md](../../bw1100/collectives/AlltoAll.md) |
+| AlltoAllv | count×ts×n | (n−1)/n | B | [AlltoAllv.md](../../bw1100/collectives/AlltoAllv.md) |
+| Scatter | count×ts×n | (n−1)/n | B | [Scatter.md](../../bw1100/collectives/Scatter.md) |
+| Gather | count×ts×n | (n−1)/n | B | [Gather.md](../../bw1100/collectives/Gather.md) |
+| SendRecv | count×ts | 1 | B | [SendRecv.md](../../bw1100/collectives/SendRecv.md) |
+| HyperCube | count×ts×(n−1) | 1 | B | [HyperCube.md](../../bw1100/collectives/HyperCube.md) |
 
 > `ts` = typesize；`count` = paramcount（各算子从用户 -b 经 GetCollByteCount 派生）。
 > *Broadcast/Reduce 在无流水线树形下上限为 B/log₂n，RCCL 流水线实现下可达 B。
@@ -54,18 +56,20 @@ n 与 M 只影响能否打满链路（大消息、高 n 才接近上限），不
 
 ## 五、典型硬件 busBw 上限参考
 
-| 硬件 | 互连 | 单向 B | busBw 上限 |
-|------|------|--------|-----------|
-| MI300X | XGMI | ~100 GB/s | ~100 GB/s |
-| MI250X | XGMI | ~50 GB/s | ~50 GB/s |
-| H100 | NVLink4 | 50 GB/s | 50 GB/s |
-| A100 | NVLink3 | 25 GB/s | 25 GB/s |
+| 硬件 | 互连 | 单向链路 B | busBw 理论上限 | 说明 |
+|------|------|--------|-----------|---|
+| 海光 BW1100 | HSL（StarLink） | ~112 GB/s | ~112 GB/s（双向标称 224 GB/s） | 本仓库重点实测平台（见 [BW1100 目录](../../bw1100/README.md)） |
+| 海光 BW150 | PCIe 4.0 x16 | ~25 GB/s | ~25 GB/s | 单机 PCIe P2P 互联 |
+| AMD MI300X | XGMI | ~100 GB/s | ~100 GB/s | 全互联拓扑 |
+| AMD MI250X | XGMI | ~50 GB/s | ~50 GB/s | Dual-die 互联 |
+| NVIDIA H100 | NVLink4 | 50 GB/s | 50 GB/s | NVSwitch 互联 |
+| NVIDIA A100 | NVLink3 | 25 GB/s | 25 GB/s | NVSwitch 互联 |
 
 ## 六、深入学习
 
 每个算子的完整推导（源码公式、参数含义、算法推导、手算过程、HTML 图解）见：
 
-- **[各算子带宽总览](../bw1100/collectives/README.md)** — 总览索引
+- **[各算子带宽总览](../../bw1100/collectives/README.md)** — 总览索引
 - 各算子 `.md` 文件 — 详细推导（含内嵌 HTML 图解）
 - 各算子 `_busbw.html` 文件 — 独立可打开的图解卡片
 

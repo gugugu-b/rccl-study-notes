@@ -5,7 +5,7 @@
 ## 常用入口
 
 - [BW1100 8 卡实测与复现](doc/bw1100/README.md)汇集 DTK 安装、同机版本对比、各算子带宽和调优脚本。
-- [RCCL 7 天学习计划](doc/learning/RCCL_7天学习计划.md)串联环境搭建、源码阅读、拓扑和调优。
+- [RCCL 7 天学习计划](doc/learning/rccl/RCCL_7天学习计划.md) 与 [OpenMPI 7 天学习计划](doc/learning/openmpi/OpenMPI_7天学习计划.md) 串联集群通信基础、源码阅读与调优。
 - 厂商原件、实测原始数据和拓扑复现套件保存在仓库旁的 `rccl-private` 目录。
 
 `rccl/` 是本地 RCCL 源码参考副本。[rccl-tests](rccl-tests/README.md) 是本仓库的测试套件子模块。
